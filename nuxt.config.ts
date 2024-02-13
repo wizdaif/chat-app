@@ -4,4 +4,9 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/ui'
   ],
+  plugins: ['~/plugins/socket.client'],
+  nitro: {
+    entry: process.env.NODE_ENV == 'production' ? undefined : "../preset/entry.dev",
+    preset: "./preset",
+  },
 })
