@@ -25,6 +25,8 @@ const host = process.env.NITRO_HOST || process.env.HOST;
 
 const path = process.env.NITRO_UNIX_SOCKET;
 
+console.log(path)
+
 // @ts-ignore
 const listener = server.listen(path ? { path } : { port, host }, (err) => {
   if (err) {

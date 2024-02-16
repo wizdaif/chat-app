@@ -1,7 +1,14 @@
-import {useStorage} from "@vueuse/core";
+import {useStorage, } from "@vueuse/core";
 import {generateRandom} from "~/lib/utils";
 
 export default function () {
-    let user = useStorage('ncs-user', {id: generateRandom(128), name: null});
-    return { user }
+    let id = generateRandom(128)
+
+    let user = useStorage('user', { id, name: null});
+
+    const updateName = (name: string) => {
+        user.value.name = name as any;
+    }
+
+    return { user, updateName }
 }

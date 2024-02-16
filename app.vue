@@ -13,6 +13,8 @@ const username = ref("")
 const usernameTemp = ref("")
 const input = ref("")
 
+const { user, updateName } = useUser();
+
 function messageSubmit() {
   if (input.value.length > 24) {
     toast.add({
@@ -41,7 +43,9 @@ function usernameSubmit() {
 
     usernameTemp.value = ""
   } else {
-    username.value = usernameTemp.value;
+    // username.value = usernameTemp.value;
+
+    user.value.name = usernameTemp.value as any;
   }
 }
 </script>
