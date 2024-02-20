@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 interface Chat {
     id: any;
-    message: string;
+    content: string;
     timestamp: number;
 }
 
@@ -14,20 +14,26 @@ export const socketHandler = async (io: Server) => {
     })
 
     io.on('connection', (socket) => {
+        console.log('byebye', socket.id)
+
         socket.on('disconnect', () => console.log('Byebye', socket.id));
 
         socket.on('join', (user) => {
-            socket.join('all');
+            if (users.some((u) => u.name === user.name)) return;
 
-            console.log(users)
+            socket.join('all');
             
             users.push(user);
+            
+            socket.data.user = user;
+
+            socket.emit('username_accept');
 
             io.to('all').emit('join', {
                 id: user.id,
                 name: user.name,
                 system: true,
-                content: `${user.name} joined`
+                content: `${user.name} has joined`
             })
         })
 
@@ -45,9 +51,15 @@ export const socketHandler = async (io: Server) => {
         })
 
         socket.on('message', (message) => {
-            messages.push(message);
-            console.log(message)
-            io.to('all').emit('message', {...message, name: users.find((u) => u.id == message.id)?.name });
+            const newmessage = {
+                content: message, 
+                timestamp: Date.now(),
+                id: socket.data.user.id ?? users.find((u) => u.id === message.id),
+                name: socket.data.user.name ?? users.find((u) => u.id == message.id)?.name 
+            }
+            messages.push(newmessage);
+            console.log(newmessage)
+            io.to('all').emit('message', newmessage);
         })
     })
 

@@ -1,19 +1,37 @@
 <script setup lang="ts">
+import { useSocket } from "./lib/utils";
+
 const toast = useToast()
 
 interface Chat {
   name: string;
-  message: string;
+  content: string;
+  system: boolean;
   timestamp: number;
 }
-
-const chats = ref([]) as Ref<Chat[]>
-
 const username = ref("")
 const usernameTemp = ref("")
 const input = ref("")
 
+const io = useSocket();
+
+const { data: { value: messages }, refresh: refreshMessages } = useFetch("/api/messages")
+
+const chats = ref([]) as Ref<Chat[]>
+
+console.log(messages)
+
 const { user, updateName } = useUser();
+
+io.once('username_accept', () => username.value = user.value!.name);
+
+io.on('message', (m) => {
+  chats.value.push(m);
+})
+
+io.on('join', (m) => {
+  chats.value.push(m)
+})
 
 function messageSubmit() {
   if (input.value.length > 24) {
@@ -25,11 +43,15 @@ function messageSubmit() {
 
     return;
   } else if (input.value.length > 0 && input.value.length < 25) {
-    chats.value.push({
-      name: username.value,
-      message: input.value,
-      timestamp: Date.now()
-    })
+    // chats.value.push({
+    //   name: username.value,
+    //   message: input.value,
+    //   timestamp: Date.now()
+    // })
+    
+    // useSend(input.value);
+
+    io.emit('message', input.value);
 
     input.value = ""
   }
@@ -45,7 +67,10 @@ function usernameSubmit() {
   } else {
     // username.value = usernameTemp.value;
 
+    refreshMessages()
+
     user.value.name = usernameTemp.value as any;
+    io.emit('join', user.value);
   }
 }
 </script>
@@ -77,6 +102,10 @@ function usernameSubmit() {
     align-items: center;
     flex-direction: column;
     color: white;
+  }
+
+  .system {
+    color: gray;
   }
 
   .welcome input[type="text"] {
@@ -112,8 +141,12 @@ function usernameSubmit() {
       <div class="chat-box">
         <div class="messages">
           <div v-for="chat of chats" v-bind:key="chat.timestamp">
-            <p>
-              {{ chat.name }}: {{ chat.message  }}
+            <p v-if="chat.system !== true">
+              {{ chat.name }}: {{ chat.content }}
+            </p>
+
+            <p v-if="chat.system === true" class="system message">
+              System: {{ chat.content }}
             </p>
           </div>
 
