@@ -14,18 +14,31 @@ export const socketHandler = async (io: Server) => {
     })
 
     io.on('connection', (socket) => {
-        console.log('byebye', socket.id)
+        let user = null;
 
-        socket.on('disconnect', () => console.log('Byebye', socket.id));
+        socket.on('disconnect', () => {
+            let leftUser = users.find((u) => u.funniId === socket.id);
 
-        socket.on('join', (user) => {
-            if (users.some((u) => u.name === user.name)) return;
+            if (!leftUser) return;
+
+            console.log(leftUser)
+
+            io.to('all').emit('leave', {
+                id: leftUser.id,
+                name: leftUser.name,
+                system: true,
+                content: `${leftUser.name} left`
+            })
+        });
+
+        socket.on('join', (_user) => {
+            if (users.some((u) => u.name === _user.name)) return;
 
             socket.join('all');
             
-            users.push(user);
+            users.push({ ..._user, funniId: socket.id });
             
-            socket.data.user = user;
+            user = _user;
 
             socket.emit('username_accept');
 
@@ -54,16 +67,15 @@ export const socketHandler = async (io: Server) => {
             const newmessage = {
                 content: message, 
                 timestamp: Date.now(),
-                id: socket.data.user.id ?? users.find((u) => u.id === message.id),
-                name: socket.data.user.name ?? users.find((u) => u.id == message.id)?.name 
+                id: user!.id ?? users.find((u) => u.id === message.id),
+                name: user!.name ?? users.find((u) => u.id == message.id)?.name 
             }
             messages.push(newmessage);
-            console.log(newmessage)
+            // console.log(newmessage)
             io.to('all').emit('message', newmessage);
         })
     })
-
-    io.on('message', (m) => {
-        console.log(m)
-    })
+    // io.on('message', (m) => {
+    //     console.log(m)
+    // })
 }

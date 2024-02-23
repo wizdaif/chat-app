@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSocket } from "./lib/utils";
+import { useEventListener } from '@vueuse/core'
 
 const toast = useToast()
 
@@ -31,6 +32,10 @@ io.on('message', (m) => {
 
 io.on('join', (m) => {
   chats.value.push(m)
+})
+
+onMounted(() => {
+  useEventListener(window, 'beforeunload', () => io.disconnect()); // this not working rn, but init disconnect when page closes
 })
 
 function messageSubmit() {
@@ -141,11 +146,15 @@ function usernameSubmit() {
       <div class="chat-box">
         <div class="messages">
           <div v-for="chat of chats" v-bind:key="chat.timestamp">
-            <p v-if="chat.system !== true">
+            <p v-if="chat.system !== true && chat.name !== username" class="text-slate-400 font-medium">
               {{ chat.name }}: {{ chat.content }}
             </p>
 
-            <p v-if="chat.system === true" class="system message">
+            <p v-if="chat.system !== true && chat.name === username" class="text-slate-200 font-semibold">
+              {{ chat.name }}: {{ chat.content }}
+            </p>
+
+            <p v-if="chat.system === true" class="system message text-center italic">
               System: {{ chat.content }}
             </p>
           </div>
