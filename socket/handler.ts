@@ -6,6 +6,7 @@ interface Chat {
 }
 
 export let users: any[] = [];
+export let onlineUsers: any[] = [];
 export const messages: Chat[] = []
 
 export const socketHandler = async (io: Server) => {
@@ -37,6 +38,8 @@ export const socketHandler = async (io: Server) => {
             socket.join('all');
             
             users.push({ ..._user, funniId: socket.id });
+            io.to('all').emit('new_user', _user.name)
+            onlineUsers.push(_user.name)
             
             user = _user;
 

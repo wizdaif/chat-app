@@ -16,6 +16,9 @@ const input = ref("")
 
 const io = useSocket();
 
+const users: string[] = [];
+
+// const { data: { value: users }, refresh: refreshUsers,  } = useFetch('/api/online');
 const { data: { value: messages }, refresh: refreshMessages } = useFetch("/api/messages")
 
 const chats = ref([]) as Ref<Chat[]>
@@ -24,7 +27,10 @@ console.log(messages)
 
 const { user, updateName } = useUser();
 
-io.once('username_accept', () => username.value = user.value!.name);
+io.once('username_accept', () => {
+  username.value = user.value!.name
+  users.push(m);
+});
 
 io.on('message', (m) => {
   chats.value.push(m);
@@ -34,7 +40,12 @@ io.on('join', (m) => {
   chats.value.push(m)
 })
 
+io.on('new_user', (m) => {
+  if (m !== usernameTemp.value) users.push(m)
+});
+
 onMounted(() => {
+  // setInterval(() => refreshUsers(), 30000);
   useEventListener(window, 'beforeunload', () => io.disconnect()); // this not working rn, but init disconnect when page closes
 })
 
@@ -139,33 +150,41 @@ function usernameSubmit() {
 </style>
 
 <template>
-  <div class="container">
+  <div class="container w-screen h-screen">
     <h1 class="web-title">(e2e) chat</h1>
 
-    <div class="chat-area" v-if="username.length > 0">
-      <div class="chat-box">
-        <div class="messages">
-          <div v-for="chat of chats" v-bind:key="chat.timestamp">
-            <p v-if="chat.system !== true && chat.name !== username" class="text-slate-400 font-medium">
-              {{ chat.name }}: {{ chat.content }}
-            </p>
+    <div class="flex right-0 items-center">
+      <div class="chat-area" v-if="username.length > 0">
+        <div class="chat-box">
+          <div class="messages">
+            <div v-for="chat of chats" v-bind:key="chat.timestamp">
+              <p v-if="chat.system !== true && chat.name !== username" class="text-slate-400 font-medium">
+                {{ chat.name }}: {{ chat.content }}
+              </p>
 
-            <p v-if="chat.system !== true && chat.name === username" class="text-slate-200 font-semibold">
-              {{ chat.name }}: {{ chat.content }}
-            </p>
+              <p v-if="chat.system !== true && chat.name === username" class="text-slate-200 font-semibold">
+                {{ chat.name }}: {{ chat.content }}
+              </p>
 
-            <p v-if="chat.system === true" class="system message text-center italic">
-              System: {{ chat.content }}
-            </p>
+              <p v-if="chat.system === true" class="system message text-center italic">
+                System: {{ chat.content }}
+              </p>
+            </div>
+
+            <p v-if="chats.length == 0">No messages yet...</p>
           </div>
-
-          <p v-if="chats.length == 0">No messages yet...</p>
         </div>
+        <form class="chat-input" @submit.stop.prevent="messageSubmit">
+          <input type="text" placeholder="Enter a message" :value="input" @change="e => input = e.target!.value" />
+          <button @click="messageSubmit"></button>
+        </form>
       </div>
-      <form class="chat-input" @submit.stop.prevent="messageSubmit">
-        <input type="text" placeholder="Enter a message" :value="input" @change="e => input = e.target!.value" />
-        <button @click="messageSubmit"></button>
-      </form>
+
+      <div class="users-online right-0 bg-white h-fit w-[200px] m-auto mr-0" v-if="username.length > 0">
+          <div v-for="user of users" v-bind:key="chat.timestamp">
+            <p>{{ user }}</p>
+          </div>
+      </div>
     </div>
 
     <div class="welcome" v-if="!(username.length > 0)">
