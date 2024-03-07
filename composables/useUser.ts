@@ -4,11 +4,11 @@ import {generateRandom} from "~/lib/utils";
 export default function () {
     let id = generateRandom(128)
 
-    let user = useStorage('user', { id, name: null});
+    const user = useCookie('user', {
+        // default: () => (),
+    })
 
-    const updateName = (name: string) => {
-        user.value.name = name as any;
-    }
+    if (!user.value) user.value = { id, name: null } as any;
 
-    return { user, updateName }
+    return { user }
 }

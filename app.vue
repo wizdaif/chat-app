@@ -10,42 +10,51 @@ interface Chat {
   system: boolean;
   timestamp: number;
 }
+
+const input = ref("")
 const username = ref("")
 const usernameTemp = ref("")
-const input = ref("")
+
+const bottomOfChatRef = ref(null);
 
 const io = useSocket();
 
-const users: string[] = [];
-
-// const { data: { value: users }, refresh: refreshUsers,  } = useFetch('/api/online');
+const { data: { value: u2 }, refresh: refreshUsers  } = useFetch('/api/online');
 const { data: { value: messages }, refresh: refreshMessages } = useFetch("/api/messages")
 
-const chats = ref([]) as Ref<Chat[]>
+const users = ref([...new Set(u2?.users)]) as unknown as Ref<string[]>;
+const chats = ref(messages?.messages) as unknown as Ref<Chat[]>
 
-console.log(messages)
+const { user } = useUser();
 
-const { user, updateName } = useUser();
-
-io.once('username_accept', () => {
+io.on('username_accept', () => {
   username.value = user.value!.name
-  users.push(m);
+  if (!users.value.some(u=>u === username.value)) users.value.push(username.value);
 });
 
 io.on('message', (m) => {
   chats.value.push(m);
+
+  (bottomOfChatRef.value as any)?.scrollIntoView({ behavior: "smooth" })
 })
 
 io.on('join', (m) => {
   chats.value.push(m)
 })
 
+io.on('get_users', (us: string[]) => {
+  users.value = [...new Set(...us, ...users.value)]
+})
+
 io.on('new_user', (m) => {
-  if (m !== usernameTemp.value) users.push(m)
+  if (m !== usernameTemp.value) users.value.push(m)
 });
 
 onMounted(() => {
+  io.emit('get_messages')
   // setInterval(() => refreshUsers(), 30000);
+  // setInterval(() => io.emit('get_users'), 5000);
+  setInterval(() => io.emit('check_whats_up', (user.value as any).id), 5000);
   useEventListener(window, 'beforeunload', () => io.disconnect()); // this not working rn, but init disconnect when page closes
 })
 
@@ -67,7 +76,7 @@ function messageSubmit() {
     
     // useSend(input.value);
 
-    io.emit('message', input.value);
+    io.emit('message', { content: input.value, id: (user.value as any)!.id });
 
     input.value = ""
   }
@@ -96,12 +105,21 @@ function usernameSubmit() {
     background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), #181818;
   }
 
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
   .web-title {
     color: white;
     display: flex;
     align-items: center;
-    justify-content: center;
-    text-align: center;
+    font-weight: 900;
+    /* justify-content: center; */
+    /* text-align: center; */
   }
 
   .chat-area {
@@ -150,40 +168,47 @@ function usernameSubmit() {
 </style>
 
 <template>
-  <div class="container w-screen h-screen">
+  <img src="/lelouch2.jpg" class="h-screen w-screen absolute" />
+
+  <div class="container w-screen h-screen z-10 absolute p-10 left-0 m-auto ml-0">
     <h1 class="web-title">(e2e) chat</h1>
 
-    <div class="flex right-0 items-center">
-      <div class="chat-area" v-if="username.length > 0">
-        <div class="chat-box">
-          <div class="messages">
-            <div v-for="chat of chats" v-bind:key="chat.timestamp">
-              <p v-if="chat.system !== true && chat.name !== username" class="text-slate-400 font-medium">
-                {{ chat.name }}: {{ chat.content }}
-              </p>
+    <div class="flex right-0 items-center space-y-5">
+      <div class="flex flex-col space-y-5">
+        <div class="chat-area bg-slate-950 rounded-xl p-5" v-if="username.length > 0">
+          <div class="chat-box w-full h-full">
+            <ul class="messages overflow-y-scroll h-[600px] no-scrollbar -mb-16">
+              <li v-for="chat of chats" v-bind:key="chat.timestamp">
+                <p v-if="chat.system !== true && chat.name !== username" class="text-slate-400 font-medium text-left">
+                  {{ chat.name }}: {{ chat.content }}
+                </p>
 
-              <p v-if="chat.system !== true && chat.name === username" class="text-slate-200 font-semibold">
-                {{ chat.name }}: {{ chat.content }}
-              </p>
+                <p v-if="chat.system !== true && chat.name === username" class="text-slate-200 font-semibold text-left">
+                  {{ chat.name }}: {{ chat.content }}
+                </p>
 
-              <p v-if="chat.system === true" class="system message text-center italic">
-                System: {{ chat.content }}
-              </p>
-            </div>
+                <p v-if="chat.system === true" class="system message text-center italic">
+                  System: {{ chat.content }}
+                </p>
+              </li>
 
-            <p v-if="chats.length == 0">No messages yet...</p>
+              <span ref="bottomOfChatRef"></span>
+
+              <li v-if="chats.length == 0">No messages yet...</li>
+            </ul>
           </div>
+          <form class="chat-input space-x-2 -mt-10 pt-0" @submit.stop.prevent="messageSubmit">
+            <input type="text" placeholder="Enter a message" class="px-2 rounded-md" :value="input" @change="e => input = e.target!.value" />
+            <button @click="messageSubmit" class="bg-green-500 rounded-md">></button>
+          </form>
         </div>
-        <form class="chat-input" @submit.stop.prevent="messageSubmit">
-          <input type="text" placeholder="Enter a message" :value="input" @change="e => input = e.target!.value" />
-          <button @click="messageSubmit"></button>
-        </form>
-      </div>
 
-      <div class="users-online right-0 bg-white h-fit w-[200px] m-auto mr-0" v-if="username.length > 0">
-          <div v-for="user of users" v-bind:key="chat.timestamp">
-            <p>{{ user }}</p>
-          </div>
+        <ul class="users-online h-fit w-full bg-gray-950 rounded-md" v-if="username.length > 0">
+          <p class="text-white">{{ users.length.toLocaleString() }} {{ users.length > 1 ? 'users' : 'user' }} online</p>
+          <li v-for="user of users" v-bind:key="user">
+            <p class="text-green-200">{{ user }}</p>
+          </li>
+        </ul>
       </div>
     </div>
 
